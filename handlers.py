@@ -61,19 +61,24 @@ async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TY
     lang = get_user_lang(user_id)
     query = update.message.text
     
-    # Игнорируем слишком длинные сообщения (защита от спама)
     if len(query) > 20: 
         return
 
+    # 1. Отправляем "Ожидайте..."
     wait_msg = await update.message.reply_text("⏳ ...")
     
+    # 2. Получаем данные
     data = CryptoService.get_coin_price(query)
     
+    # 3. Обработка результата
     if data == "error":
         await wait_msg.edit_text(TEXTS[lang]['error_fetch'])
+    
     elif data is None:
         await wait_msg.edit_text(TEXTS[lang]['not_found'])
+    
     else:
+        # Формируем текст (убрали 💰, так как будет картинка)
         msg = TEXTS[lang]['price_msg'].format(
             name=data['name'],
             symbol=data['symbol'],
@@ -82,4 +87,22 @@ async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TY
             uah=data['uah'],
             rub=data['rub']
         )
-        await wait_msg.edit_text(msg, parse_mode='Markdown')
+
+        # Удаляем сообщение "Ожидайте..."
+        await wait_msg.delete()
+
+        # Если есть картинка — шлем фото с подписью
+        if data.get('image'):
+            try:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=data['image'],
+                    caption=msg,
+                    parse_mode='Markdown'
+                )
+            except Exception:
+                # Если ссылка на картинку битая, шлем просто текст
+                await update.message.reply_text(msg, parse_mode='Markdown')
+        else:
+            # Если картинки нет (например, из CoinCap)
+            await update.message.reply_text(msg, parse_mode='Markdown')

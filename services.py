@@ -1,14 +1,15 @@
 # services.py
 import requests
-import time
 from cachetools import TTLCache
 from config import COINGECKO_URL, COINCAP_URL
 from utils import logger
 
-# Кэш на 1000 элементов, живет 600 секунд (10 минут)
+# Кэш цен (10 минут)
 price_cache = TTLCache(maxsize=1000, ttl=600)
-# Кэш для поиска ID монет, живет 24 часа
+# Кэш ID монет (24 часа)
 id_cache = TTLCache(maxsize=2000, ttl=86400)
+# Кэш картинок (24 часа) — хранит URL логотипов
+image_cache = TTLCache(maxsize=2000, ttl=86400)
 
 class CryptoService:
     @staticmethod
@@ -17,12 +18,10 @@ class CryptoService:
         
         # 1. Проверяем кэш цен
         if query in price_cache:
-            logger.info(f"Returning cached data for {query}")
             return price_cache[query]
 
         # 2. Основной API (CoinGecko)
         try:
-            # Сначала нужно найти ID монеты, если введен тикер (например BTC -> bitcoin)
             coin_id = CryptoService._resolve_coingecko_id(query)
             if not coin_id:
                 return None
@@ -37,9 +36,13 @@ class CryptoService:
             data = response.json()
             
             if coin_id in data:
+                # Достаем картинку из кэша (она туда попала при поиске ID)
+                image_url = image_cache.get(query)
+
                 result = {
-                    'name': coin_id.capitalize(), # API simple не отдает имя, берем ID
+                    'name': coin_id.capitalize(),
                     'symbol': query.upper(),
+                    'image': image_url,  # Добавляем ссылку на фото
                     'usd': data[coin_id]['usd'],
                     'eur': data[coin_id]['eur'],
                     'uah': data[coin_id]['uah'],
@@ -50,7 +53,6 @@ class CryptoService:
                 
         except Exception as e:
             logger.error(f"CoinGecko API failed: {e}")
-            # Переходим к запасному API
 
         # 3. Запасной API (CoinCap)
         try:
@@ -61,7 +63,7 @@ class CryptoService:
 
     @staticmethod
     def _resolve_coingecko_id(query):
-        """Ищет ID монеты по тикеру или названию через CoinGecko Search"""
+        """Ищет ID и сохраняет картинку"""
         if query in id_cache:
             return id_cache[query]
             
@@ -69,23 +71,36 @@ class CryptoService:
         try:
             response = requests.get(url, params={'query': query}, timeout=5)
             data = response.json()
-            # Ищем точное совпадение по символу или id
+            
+            found_coin = None
+            
+            # Ищем точное совпадение
             for coin in data.get('coins', []):
                 if coin['symbol'].lower() == query or coin['id'].lower() == query:
-                    id_cache[query] = coin['id']
-                    return coin['id']
-            # Если точного нет, берем первый результат, если он похож
-            if data.get('coins'):
-                 first = data['coins'][0]['id']
-                 id_cache[query] = first
-                 return first
+                    found_coin = coin
+                    break
+            
+            # Если нет точного, берем первый
+            if not found_coin and data.get('coins'):
+                found_coin = data['coins'][0]
+
+            if found_coin:
+                c_id = found_coin['id']
+                id_cache[query] = c_id
+                
+                # Обработка картинки: меняем thumb на large для качества
+                thumb_url = found_coin.get('thumb', '')
+                large_url = thumb_url.replace('thumb', 'large')
+                image_cache[query] = large_url
+                
+                return c_id
+                
         except:
-            return query # Пытаемся использовать как есть
+            return query 
         return None
 
     @staticmethod
     def _get_from_coincap(query):
-        # CoinCap поиск
         url = f"{COINCAP_URL}/assets"
         params = {'search': query, 'limit': 1}
         response = requests.get(url, params=params, timeout=10)
@@ -93,11 +108,9 @@ class CryptoService:
         
         if data['data']:
             coin = data['data'][0]
-            # CoinCap отдает только USD. Остальные придется конвертировать примерно или искать API курсов.
-            # Для простоты при fallback оставим конвертацию фиктивной или на основе USD
             usd_price = float(coin['priceUsd'])
             
-            # Хардкод примерных кросс-курсов для fallback (лучше подключить API валют)
+            # Хардкод курсов для fallback
             eur_rate = 0.92
             uah_rate = 41.5
             rub_rate = 96.0
@@ -105,6 +118,7 @@ class CryptoService:
             result = {
                 'name': coin['name'],
                 'symbol': coin['symbol'],
+                'image': None, # У CoinCap сложно достать картинки без лишних движений
                 'usd': round(usd_price, 4),
                 'eur': round(usd_price * eur_rate, 4),
                 'uah': round(usd_price * uah_rate, 4),
