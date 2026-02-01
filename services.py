@@ -7,7 +7,10 @@ from datetime import datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from cachetools import TTLCache
-from config import COINGECKO_URL, COINCAP_URL, CRYPTOCOMPARE_URL, COINGECKO_API_KEY
+from config import (
+    COINGECKO_URL, COINCAP_URL, CRYPTOCOMPARE_URL, 
+    COINMARKETCAP_URL, COINGECKO_API_KEY, COINMARKETCAP_API_KEY
+)
 from utils import logger
 
 # Настройка Matplotlib для работы на сервере без экрана
@@ -22,12 +25,18 @@ CG_HEADERS = {
     'x-cg-demo-api-key': COINGECKO_API_KEY
 }
 
+# Хедеры для CoinMarketCap
+CMC_HEADERS = {
+    'Accepts': 'application/json',
+    'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
+}
+
 # Кэш
 chart_cache = TTLCache(maxsize=500, ttl=600)
 price_cache = TTLCache(maxsize=1000, ttl=600)
 image_cache = TTLCache(maxsize=2000, ttl=86400)
 id_cache = TTLCache(maxsize=2000, ttl=86400)
-top10_cache = TTLCache(maxsize=1, ttl=300) # Кэш топ-10 на 5 минут
+top10_cache = TTLCache(maxsize=1, ttl=300)
 
 class CryptoService:
     @staticmethod
@@ -36,20 +45,27 @@ class CryptoService:
         if query in price_cache:
             return price_cache[query]
 
-        # 1. CoinGecko
+        # 1. CoinGecko (Лучший, есть картинки)
         data = CryptoService._get_from_coingecko(query)
         if data: return data
 
-        # 2. CoinCap
+        # 2. CoinMarketCap (Новый, очень надежный)
+        data = CryptoService._get_from_coinmarketcap(query)
+        if data: return data
+
+        # 3. CoinCap (Резерв)
         data = CryptoService._get_from_coincap(query)
         if data: return data
 
-        # 3. CryptoCompare
+        # 4. CryptoCompare (Последний шанс)
         return CryptoService._get_from_cryptocompare(query)
 
     @staticmethod
     def get_chart(coin_id):
-        """Генерирует график за 24 часа и возвращает объект BytesIO (картинку)"""
+        """Генерирует график за 24 часа (Только CoinGecko)"""
+        # Если ID нет (пришло от CMC/CoinCap), график построить нельзя
+        if not coin_id: return None
+
         if coin_id in chart_cache:
             chart_cache[coin_id].seek(0)
             return chart_cache[coin_id]
@@ -65,11 +81,9 @@ class CryptoService:
             data = resp.json().get('prices', [])
             if not data: return None
 
-            # Подготовка данных
             times = [datetime.fromtimestamp(x[0]/1000) for x in data]
             prices = [x[1] for x in data]
 
-            # Рисуем график
             plt.style.use('dark_background')
             fig, ax = plt.subplots(figsize=(10, 5))
             
@@ -121,6 +135,7 @@ class CryptoService:
         return None
 
     # --- Приватные методы получения цен ---
+    
     @staticmethod
     def _get_from_coingecko(query):
         try:
@@ -158,6 +173,47 @@ class CryptoService:
         return None
 
     @staticmethod
+    def _get_from_coinmarketcap(query):
+        """Получение цены через CoinMarketCap"""
+        try:
+            url = f"{COINMARKETCAP_URL}/cryptocurrency/quotes/latest"
+            # CMC ищет по символу (BTC)
+            params = {'symbol': query, 'convert': 'USD'}
+            
+            r = session.get(url, headers=CMC_HEADERS, params=params, timeout=10)
+            if r.status_code != 200: return None
+            
+            data = r.json().get('data', {})
+            if query in data:
+                coin = data[query] # CMC возвращает данные под ключом символа "BTC"
+                quote = coin['quote']['USD']
+                
+                price_usd = quote['price']
+                
+                # Ручной пересчет кросс-курсов для экономии кредитов API
+                # Курсы примерные, но для крипты достаточно точные
+                eur_rate = 0.96  # 1 USD = 0.96 EUR
+                uah_rate = 41.60 # 1 USD = 41.60 UAH
+                rub_rate = 96.50 # 1 USD = 96.50 RUB
+                
+                res = {
+                    'id': None, # Графика не будет, т.к. нет ID CoinGecko
+                    'name': coin['name'], 
+                    'symbol': coin['symbol'], 
+                    'image': None,
+                    'usd': round(price_usd, 2),
+                    'eur': round(price_usd * eur_rate, 2),
+                    'uah': round(price_usd * uah_rate, 2),
+                    'rub': round(price_usd * rub_rate, 2),
+                    'change_24h': quote['percent_change_24h']
+                }
+                price_cache[query] = res
+                return res
+        except Exception as e:
+            logger.error(f"CMC Error: {e}")
+        return None
+
+    @staticmethod
     def _get_from_coincap(query):
         try:
             url = f"{COINCAP_URL}/assets"
@@ -170,8 +226,8 @@ class CryptoService:
                 res = {
                     'id': c['id'],
                     'name': c['name'], 'symbol': c['symbol'], 'image': None,
-                    'usd': round(p, 2), 'eur': round(p*0.92, 2), 
-                    'uah': round(p*41.5, 2), 'rub': round(p*96.0, 2),
+                    'usd': round(p, 2), 'eur': round(p*0.96, 2), 
+                    'uah': round(p*41.6, 2), 'rub': round(p*96.5, 2),
                     'change_24h': change
                 }
                 price_cache[query] = res
