@@ -1,7 +1,7 @@
 # app.py
+import pytz
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ConversationHandler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import pytz
 from config import BOT_TOKEN, ADMIN_ID
 from database import init_db, get_statistics 
 from handlers import (
@@ -11,7 +11,7 @@ from handlers import (
 )
 
 # Функция отчета
-async def send_daily_stats(app):
+async def send_daily_stats(context):
     s = get_statistics()
     top_list = "\n".join([f"{i+1}. {c[0]} — {c[1]}" for i, c in enumerate(s['top_coins'])])
     
@@ -23,21 +23,24 @@ async def send_daily_stats(app):
         f"🔍 Запросов всего: `{s['total_requests']}`\n\n"
         f"🏆 **Топ монет:**\n{top_list}"
     )
-    # Используем bot напрямую из созданного приложения
-    await app.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='Markdown')
+    # Здесь используем context.bot напрямую
+    await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='Markdown')
+
+# Функция, которая запустится ПОСЛЕ того, как бот создаст цикл (event loop)
+async def post_init(application):
+    scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Kyiv"))
+    # Передаем Job Queue как аргумент для отправки сообщений
+    scheduler.add_job(send_daily_stats, 'cron', hour=10, minute=0, args=(application,))
+    scheduler.start()
+    print("Scheduler started successfully at 10:00 Kyiv time.")
 
 def main():
     init_db()
     
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Добавляем .post_init() при сборке приложения
+    app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
 
-    # Настройка планировщика
-    scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Kyiv"))
-    # Передаем app через args (кортеж, поэтому запятая в конце обязательна)
-    scheduler.add_job(send_daily_stats, 'cron', hour=10, minute=0, args=(app,))
-    scheduler.start()
-
-    # Обработчики
+    # Хендлеры
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('support', support_start)],
         states={SUPPORT_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, support_receive)]},
@@ -51,7 +54,7 @@ def main():
     app.add_handler(conv_handler)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_request))
 
-    print("Bot is running...")
+    print("Bot is starting up...")
     app.run_polling()
 
 if __name__ == '__main__':
