@@ -1,30 +1,108 @@
+# 🪙 CoinLuma Bot
 
-# CoinLumaBot
+![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
+![Telegram](https://img.shields.io/badge/Telegram-Bot-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Version](https://img.shields.io/badge/Version-2.6.0-orange.svg)
 
-CoinLumaBot is a Telegram bot that instantly shows the current price of any cryptocurrency.  
-Just type the name of the cryptocurrency, and the bot will reply with the latest rate.
+**CoinLuma** is an advanced Telegram bot for tracking cryptocurrency prices in real-time. It features multi-source data aggregation, professional 24h charts, market insights, and a powerful administrator panel.
 
-The bot supports multiple languages and can automatically detect the user's language.  
-You can also manually select the language via the convenient menu.
+---
 
-## Key Features
-- Get real-time prices for any cryptocurrency
-- Multi-language support (RU/EN/UA)
-- Easy-to-use menu for quick access to functions
-- Lightweight structure for easy future expansion
+## 🚀 Key Features
 
-## Setup
-Create a `.env` file in the project root with the following content:
+### 👤 For Users
+* **Multi-Source Reliability:** Aggregates prices from **CoinGecko**, **CoinMarketCap**, **CoinCap**, and **CryptoCompare**. If one API fails, the bot automatically switches to the next one.
+* **24h Market Charts:** Generates beautiful, dark-themed price charts using Matplotlib.
+* **Market Leaders:** The `/top10` command displays the current market leaders with trends.
+* **Smart UI:** Visual trend indicators (🟢 ↑ / 🔴 ↓), currency flags (🇺🇸, 🇪🇺, 🇺🇦, 🇷🇺), and clean formatting.
+* **Multilingual:** Full support for **English** 🇺🇸, **Russian** 🇷🇺, and **Ukrainian** 🇺🇦 (auto-detected).
 
-    BOT_TOKEN=your_bot_token_from_BotFather
-    ADMIN_ID=123456789
-    COINGECKO_API_KEY=AB-1A2B3C4D5...
+### 🛠 For Administrators
+* **Database Integration:** SQLite database to track users and search history.
+* **Analytics:** `/stats` command shows total users, new users (24h), active users, and top searched coins.
+* **Support System:** Users can send tickets via `/support`. Admins can reply directly from the bot using `/reply`.
+* **Broadcasting:** Send mass notifications to all users using `/broadcast`.
+* **Daily Reports:** Automatic statistical report sent to the admin every day at 10:00 (Kyiv time).
 
-- `BOT_TOKEN` — your Telegram bot token from BotFather  
-- `ADMIN_ID` — your Telegram user ID (used for admin commands, notifications, etc.)
-- `COINGECKO_API_KEY` - your CoinGeco Api Key (Demo API) 
+---
 
-[User Guide: How to sign up for CoinGecko Demo API and generate an API key?](https://support.coingecko.com/hc/en-us/articles/21880397454233-User-Guide-How-to-sign-up-for-CoinGecko-Demo-API-and-generate-an-API-key)
+## ⚙️ Installation & Setup
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+### 1. Clone the repository
+```bash
+git clone [https://github.com/al3xg0r/coinlumabot.git](https://github.com/al3xg0r/coinlumabot.git)
+cd coinlumabot
+```
+
+### 2. Create a virtual environment
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Linux/MacOS
+# venv\Scripts\activate   # Windows
+```
+
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configuration (.env)
+Create a `.env` file in the root directory. You will need to obtain API keys from the providers below.
+
+**Where to get API keys:**
+* **Telegram Bot Token:** Get it from [@BotFather](https://t.me/BotFather).
+* **CoinGecko:** Get a Demo Key [here](https://www.coingecko.com/en/api/pricing).
+* **CoinMarketCap:** Sign up for a free Basic plan [here](https://pro.coinmarketcap.com/login).
+
+**Paste this into your `.env` file:**
+
+```env
+# Required
+BOT_TOKEN=your_telegram_bot_token
+ADMIN_ID=your_telegram_numeric_id
+
+# API Keys (Highly Recommended for stability)
+COINGECKO_API_KEY=your_coingecko_key
+COINMARKETCAP_API_KEY=your_coinmarketcap_key
+```
+
+### 5. Run the bot
+```bash
+python app.py
+```
+
+---
+
+## 🤖 Commands
+
+| Command | Description | Access |
+| :--- | :--- | :--- |
+| `/start` | Start bot & register in DB | All |
+| `/help` | Show command list | All |
+| `/top10` | Show Top 10 Crypto by Market Cap | All |
+| `/info` | Version & Developer info | All |
+| `/support` | Send a message to Admin | All |
+| `BTC` | (Any text) Get price & chart | All |
+| `/stats` | View bot statistics | **Admin** |
+| `/reply ID Text` | Reply to a specific user | **Admin** |
+| `/broadcast Text` | Send message to ALL users | **Admin** |
+
+---
+
+## 🏗 Tech Stack
+
+* **Language:** Python 3.11
+* **Framework:** `python-telegram-bot` (v20+ Async)
+* **Database:** SQLite
+* **Visualization:** Matplotlib, Pandas
+* **Scheduling:** APScheduler
+* **Data Sources:** CoinGecko, CoinMarketCap, CoinCap, CryptoCompare
+
+---
+
+## 👨‍💻 Developer
+
+Created by [@al3xg0r](https://github.com/al3xg0r)
+
+Project is open for contributions! Feel free to open issues or pull requests.
