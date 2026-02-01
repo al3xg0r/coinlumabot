@@ -10,7 +10,8 @@ TEXTS = {
         'support_cancel': "Cancelled.",
         'error_fetch': "⚠️ Error fetching data. Try again later.",
         'not_found': "🔍 Coin not found.",
-        'price_msg': "💰 **{name} ({symbol})**\n💵 USD: `{usd}`\n💶 EUR: `{eur}`\n🇺🇦 UAH: `{uah}`\nrub RUB: `{rub}`",
+        # Добавлен отступ \n\n перед ценами и исправлены флаги
+        'price_msg': "💰 **{name} ({symbol})**\n\n🇺🇸 USD: `{usd}`\n🇪🇺 EUR: `{eur}`\n🇺🇦 UAH: `{uah}`\n🇷🇺 RUB: `{rub}`",
         'change_24h': "Change 24h"
     },
     'ru': {
@@ -22,19 +23,21 @@ TEXTS = {
         'support_cancel': "Отменено.",
         'error_fetch': "⚠️ Ошибка получения данных.",
         'not_found': "🔍 Монета не найдена.",
-        'price_msg': "💰 **{name} ({symbol})**\n💵 USD: `{usd}`\n💶 EUR: `{eur}`\n🇺🇦 UAH: `{uah}`\nrub RUB: `{rub}`",
+        # Добавлен отступ \n\n перед ценами и исправлены флаги
+        'price_msg': "💰 **{name} ({symbol})**\n\n🇺🇸 USD: `{usd}`\n🇪🇺 EUR: `{eur}`\n🇺🇦 UAH: `{uah}`\n🇷🇺 RUB: `{rub}`",
         'change_24h': "Изменение 24ч"
     },
     'uk': {
         'start': "👋 Привіт! Я CoinLuma.\nНадішли мені тікер криптовалюти (наприклад, BTC, ETH, TON), щоб отримати курс та графік за 24 години.",
-        'help': "Команди:\n/start - Перезапуск\n/info - Інформація\n/support - Написати адміну\n\nПросто надішли тікер (наприклад BTC).",
+        'help': "Команды:\n/start - Перезапуск\n/info - Інформація\n/support - Написати адміну\n\nПросто надішли тікер (наприклад BTC).",
         'info': "CoinLuma Bot v2.2\nДжерела: CoinGecko, CoinCap, CryptoCompare.\nРозробник: @al3xg0r",
         'support_prompt': "Напишіть повідомлення для адміністратора:",
         'support_sent': "Повідомлення надіслано!",
         'support_cancel': "Скасовано.",
         'error_fetch': "⚠️ Помилка отримання даних.",
         'not_found': "🔍 Монету не знайдено.",
-        'price_msg': "💰 **{name} ({symbol})**\n💵 USD: `{usd}`\n💶 EUR: `{eur}`\n🇺🇦 UAH: `{uah}`\nrub RUB: `{rub}`",
+        # Добавлен отступ \n\n перед ценами и исправлены флаги
+        'price_msg': "💰 **{name} ({symbol})**\n\n🇺🇸 USD: `{usd}`\n🇪🇺 EUR: `{eur}`\n🇺🇦 UAH: `{uah}`\n🇷🇺 RUB: `{rub}`",
         'change_24h': "Зміна за 24г"
     }
 }

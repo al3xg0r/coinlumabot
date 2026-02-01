@@ -53,25 +53,24 @@ async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TY
         await wait.edit_text(TEXTS[l]['not_found'])
         return
 
-    # 2. Формируем текст (ЛОКАЛИЗАЦИЯ + СМАЙЛЫ)
+    # 2. Формируем текст
     change_val = data.get('change_24h', 0)
     
-    # Смайл тренда для заголовка (Рост/Падение)
+    # Логика: если > 0, то график вверх и стрелка вверх. Иначе вниз.
     trend_emoji = "📈" if change_val >= 0 else "📉"
-    # Цветной кружок для процентов
-    color_emoji = "🟢" if change_val >= 0 else "🔴"
+    arrow_emoji = "⬆️" if change_val >= 0 else "⬇️"
     
     msg = TEXTS[l]['price_msg'].format(
         name=data['name'], symbol=data['symbol'],
         usd=data['usd'], eur=data['eur'], uah=data['uah'], rub=data['rub']
     )
     
-    # Пример: 📈 Изменение 24ч: 🟢 5.20%
-    msg += f"\n{trend_emoji} {TEXTS[l]['change_24h']}: {color_emoji} {change_val:.2f}%"
+    # Отступ перед строкой изменения (\n\n) и стрелки вместо кружков
+    msg += f"\n\n{trend_emoji} {TEXTS[l]['change_24h']}: {arrow_emoji} {change_val:.2f}%"
 
     await wait.delete()
 
-    # 3. Пробуем получить график
+    # 3. График
     chart_file = None
     if data.get('id'):
         chart_file = CryptoService.get_chart(data['id'])
