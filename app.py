@@ -7,7 +7,7 @@ from database import init_db, get_statistics
 from handlers import (
     start, help_command, info_command, 
     support_start, support_receive, cancel, 
-    handle_crypto_request, stats_command, SUPPORT_STATE
+    handle_crypto_request, stats_command, top10_command, SUPPORT_STATE # Добавлен top10_command
 )
 
 # Функция отчета
@@ -23,13 +23,12 @@ async def send_daily_stats(context):
         f"🔍 Запросов всего: `{s['total_requests']}`\n\n"
         f"🏆 **Топ монет:**\n{top_list}"
     )
-    # Здесь используем context.bot напрямую
     await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='Markdown')
 
 # Функция, которая запустится ПОСЛЕ того, как бот создаст цикл (event loop)
 async def post_init(application):
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Kyiv"))
-    # Передаем Job Queue как аргумент для отправки сообщений
+    # Передаем приложение через args
     scheduler.add_job(send_daily_stats, 'cron', hour=10, minute=0, args=(application,))
     scheduler.start()
     print("Scheduler started successfully at 10:00 Kyiv time.")
@@ -51,6 +50,7 @@ def main():
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("info", info_command))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("top10", top10_command)) # Новая команда
     app.add_handler(conv_handler)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_request))
 

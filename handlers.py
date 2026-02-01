@@ -44,6 +44,36 @@ async def cancel(update, context):
     await update.message.reply_text(TEXTS[l]['support_cancel'])
     return ConversationHandler.END
 
+# --- Топ-10 ---
+async def top10_command(update, context):
+    l = get_user_lang(update.effective_user.id)
+    
+    # 1. Получаем данные
+    coins = CryptoService.get_top_10()
+    
+    if not coins:
+        await update.message.reply_text(TEXTS[l]['top10_error'])
+        return
+
+    # 2. Формируем сообщение
+    msg = TEXTS[l]['top10_header']
+    
+    for idx, coin in enumerate(coins):
+        symbol = coin['symbol'].upper()
+        price = coin['current_price']
+        change = coin.get('price_change_percentage_24h', 0)
+        
+        # Логика стрелок (как в Crypto Request)
+        if change >= 0:
+            arrow_str = "🟢 ↑"
+        else:
+            arrow_str = "🔴 ↓"
+            
+        # Формат: 1. BTC: $96500 (🟢 ↑ 2.5%)
+        msg += f"**{idx+1}. {symbol}:** `{price} $` ({arrow_str} {change:.2f}%)\n"
+
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
 # --- Статистика для админа ---
 async def stats_command(update, context):
     user_id = update.effective_user.id
@@ -84,21 +114,19 @@ async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TY
     # 2. Формируем текст
     change_val = data.get('change_24h', 0)
     
-    # ЛОГИКА СТРЕЛОК И ЦВЕТОВ
-    # Если рост (или ноль) - зеленая, если падение - красная
+    # Логика стрелок
     if change_val >= 0:
         trend_emoji = "📈"
-        arrow_str = "🟢 ↑"  # Зеленый круг и твоя стрелка вверх
+        arrow_str = "🟢 ↑" 
     else:
         trend_emoji = "📉"
-        arrow_str = "🔴 ↓"  # Красный круг и твоя стрелка вниз
+        arrow_str = "🔴 ↓"
     
     msg = TEXTS[l]['price_msg'].format(
         name=data['name'], symbol=data['symbol'],
         usd=data['usd'], eur=data['eur'], uah=data['uah'], rub=data['rub']
     )
     
-    # Добавляем строку изменения цены
     msg += f"\n\n{trend_emoji} {TEXTS[l]['change_24h']}: {arrow_str} {change_val:.2f}%"
 
     await wait.delete()

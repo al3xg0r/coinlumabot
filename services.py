@@ -22,11 +22,12 @@ CG_HEADERS = {
     'x-cg-demo-api-key': COINGECKO_API_KEY
 }
 
-# Кэш для графиков (храним картинку 10 минут)
+# Кэш
 chart_cache = TTLCache(maxsize=500, ttl=600)
 price_cache = TTLCache(maxsize=1000, ttl=600)
 image_cache = TTLCache(maxsize=2000, ttl=86400)
 id_cache = TTLCache(maxsize=2000, ttl=86400)
+top10_cache = TTLCache(maxsize=1, ttl=300) # Кэш топ-10 на 5 минут
 
 class CryptoService:
     @staticmethod
@@ -64,7 +65,7 @@ class CryptoService:
             data = resp.json().get('prices', [])
             if not data: return None
 
-            # Подготовка данных (время и цена)
+            # Подготовка данных
             times = [datetime.fromtimestamp(x[0]/1000) for x in data]
             prices = [x[1] for x in data]
 
@@ -72,28 +73,22 @@ class CryptoService:
             plt.style.use('dark_background')
             fig, ax = plt.subplots(figsize=(10, 5))
             
-            # Линия графика (зеленая если рост, красная если падение)
             color = '#00ff00' if prices[-1] >= prices[0] else '#ff0055'
             ax.plot(times, prices, color=color, linewidth=2)
-            
-            # Заливка под графиком
             ax.fill_between(times, prices, color=color, alpha=0.1)
 
-            # Оформление
             ax.set_title(f"{coin_id.upper()} Price (24h)", fontsize=14, color='white')
             ax.grid(True, linestyle='--', alpha=0.2)
             
-            # Убираем рамки
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
             ax.spines['bottom'].set_color('#444')
             ax.spines['left'].set_color('#444')
 
-            # Сохраняем в буфер
             buf = io.BytesIO()
             plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
             buf.seek(0)
-            plt.close(fig) # Очищаем память
+            plt.close(fig)
 
             chart_cache[coin_id] = buf
             return buf
@@ -101,11 +96,34 @@ class CryptoService:
             logger.error(f"Chart error: {e}")
             return None
 
-    # --- Методы получения цен (оставил как было в v2.1.0) ---
+    @staticmethod
+    def get_top_10():
+        """Возвращает список топ-10 монет с CoinGecko"""
+        if 'top10' in top10_cache:
+            return top10_cache['top10']
+        
+        try:
+            url = f"{COINGECKO_URL}/coins/markets"
+            params = {
+                'vs_currency': 'usd',
+                'order': 'market_cap_desc',
+                'per_page': 10,
+                'page': 1,
+                'sparkline': 'false'
+            }
+            resp = session.get(url, params=params, headers=CG_HEADERS, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                top10_cache['top10'] = data
+                return data
+        except Exception as e:
+            logger.error(f"Top 10 fetch error: {e}")
+        return None
+
+    # --- Приватные методы получения цен ---
     @staticmethod
     def _get_from_coingecko(query):
         try:
-            # Сначала ищем ID
             if query in id_cache:
                 c_id = id_cache[query]
             else:
@@ -119,7 +137,6 @@ class CryptoService:
                 id_cache[query] = c_id
                 image_cache[query] = coin.get('large') or coin.get('thumb', '').replace('thumb', 'large')
 
-            # Получаем цену
             p_url = f"{COINGECKO_URL}/simple/price"
             p_params = {'ids': c_id, 'vs_currencies': 'usd,eur,uah,rub', 'include_24hr_change': 'true'}
             pr = session.get(p_url, params=p_params, headers=CG_HEADERS, timeout=10)
@@ -128,7 +145,7 @@ class CryptoService:
             if c_id in p_data:
                 d = p_data[c_id]
                 res = {
-                    'id': c_id, # Важно для графиков
+                    'id': c_id,
                     'name': c_id.capitalize(), 'symbol': query, 
                     'image': image_cache.get(query),
                     'usd': d['usd'], 'eur': d['eur'], 'uah': d['uah'], 'rub': d['rub'],
@@ -163,14 +180,13 @@ class CryptoService:
 
     @staticmethod
     def _get_from_cryptocompare(query):
-        # (Оставим без изменений, он редко срабатывает)
         try:
             params = {'fsym': query, 'tsyms': 'USD,EUR,UAH,RUB'}
             r = session.get(CRYPTOCOMPARE_URL, params=params, timeout=10)
             d = r.json()
             if "USD" in d:
                 res = {
-                    'id': None, # Графика не будет
+                    'id': None,
                     'name': query, 'symbol': query, 'image': None,
                     'usd': d['USD'], 'eur': d['EUR'], 'uah': d['UAH'], 'rub': d['RUB'],
                     'change_24h': 0
