@@ -7,7 +7,6 @@ from services import CryptoService
 
 SUPPORT_STATE = 1
 
-# (Остальные функции: start, help, info, support - оставляем без изменений)
 async def start(update, context):
     u = update.effective_user
     l = get_user_lang(u.id, u.language_code)
@@ -40,7 +39,6 @@ async def cancel(update, context):
     await update.message.reply_text(TEXTS[l]['support_cancel'])
     return ConversationHandler.END
 
-# --- Главное изменение здесь ---
 async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     l = get_user_lang(update.effective_user.id)
     q = update.message.text
@@ -55,41 +53,36 @@ async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TY
         await wait.edit_text(TEXTS[l]['not_found'])
         return
 
-    # 2. Формируем текст
-    change_emoji = "🟢" if data.get('change_24h', 0) >= 0 else "🔴"
+    # 2. Формируем текст (ЛОКАЛИЗАЦИЯ + СМАЙЛЫ)
+    change_val = data.get('change_24h', 0)
+    
+    # Смайл тренда для заголовка (Рост/Падение)
+    trend_emoji = "📈" if change_val >= 0 else "📉"
+    # Цветной кружок для процентов
+    color_emoji = "🟢" if change_val >= 0 else "🔴"
+    
     msg = TEXTS[l]['price_msg'].format(
         name=data['name'], symbol=data['symbol'],
         usd=data['usd'], eur=data['eur'], uah=data['uah'], rub=data['rub']
     )
-    msg += f"\nChange 24h: {change_emoji} {data.get('change_24h', 0):.2f}%"
+    
+    # Пример: 📈 Изменение 24ч: 🟢 5.20%
+    msg += f"\n{trend_emoji} {TEXTS[l]['change_24h']}: {color_emoji} {change_val:.2f}%"
 
     await wait.delete()
 
-    # 3. Пробуем получить график (если есть ID монеты)
+    # 3. Пробуем получить график
     chart_file = None
     if data.get('id'):
         chart_file = CryptoService.get_chart(data['id'])
 
-    # 4. Отправка ответа
+    # 4. Отправка
     try:
         if chart_file:
-            # Шлем с графиком
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id, 
-                photo=chart_file, 
-                caption=msg, 
-                parse_mode='Markdown'
-            )
+            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=chart_file, caption=msg, parse_mode='Markdown')
         elif data.get('image'):
-            # Шлем с логотипом (если график не удалось сделать)
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id, 
-                photo=data['image'], 
-                caption=msg, 
-                parse_mode='Markdown'
-            )
+            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=data['image'], caption=msg, parse_mode='Markdown')
         else:
-            # Шлем только текст
             await update.message.reply_text(msg, parse_mode='Markdown')
     except Exception as e:
         logger.error(f"Send error: {e}")
