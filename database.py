@@ -1,8 +1,11 @@
 # database.py
 import sqlite3
+import os
 from datetime import datetime, timedelta
 
-DB_NAME = "bot.db"
+# Получаем абсолютный путь к папке бота
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "bot.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -66,7 +69,7 @@ def get_statistics():
 
     # 5. Топ 5 монет
     c.execute("SELECT ticker, COUNT(*) as cnt FROM requests GROUP BY ticker ORDER BY cnt DESC LIMIT 5")
-    top_coins = c.fetchall() # Вернет список кортежей [('BTC', 10), ('ETH', 5)...]
+    top_coins = c.fetchall() 
 
     conn.close()
     
@@ -77,3 +80,12 @@ def get_statistics():
         'total_requests': total_requests,
         'top_coins': top_coins
     }
+
+def get_all_users():
+    """Возвращает список ID всех пользователей для рассылки"""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT user_id FROM users")
+    users = [row[0] for row in c.fetchall()]
+    conn.close()
+    return users

@@ -7,7 +7,8 @@ from database import init_db, get_statistics
 from handlers import (
     start, help_command, info_command, 
     support_start, support_receive, cancel, 
-    handle_crypto_request, stats_command, top10_command, SUPPORT_STATE # Добавлен top10_command
+    handle_crypto_request, stats_command, top10_command, 
+    reply_command, broadcast_command, SUPPORT_STATE 
 )
 
 # Функция отчета
@@ -25,10 +26,9 @@ async def send_daily_stats(context):
     )
     await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='Markdown')
 
-# Функция, которая запустится ПОСЛЕ того, как бот создаст цикл (event loop)
+# Функция запуска планировщика
 async def post_init(application):
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Kyiv"))
-    # Передаем приложение через args
     scheduler.add_job(send_daily_stats, 'cron', hour=10, minute=0, args=(application,))
     scheduler.start()
     print("Scheduler started successfully at 10:00 Kyiv time.")
@@ -36,10 +36,9 @@ async def post_init(application):
 def main():
     init_db()
     
-    # Добавляем .post_init() при сборке приложения
     app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
 
-    # Хендлеры
+    # Conversation Handler (Support)
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('support', support_start)],
         states={SUPPORT_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, support_receive)]},
@@ -50,8 +49,15 @@ def main():
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("info", info_command))
     app.add_handler(CommandHandler("stats", stats_command))
-    app.add_handler(CommandHandler("top10", top10_command)) # Новая команда
+    app.add_handler(CommandHandler("top10", top10_command))
+    
+    # Новые админские команды
+    app.add_handler(CommandHandler("reply", reply_command))
+    app.add_handler(CommandHandler("broadcast", broadcast_command))
+    
     app.add_handler(conv_handler)
+    
+    # Обработчик текста
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_request))
 
     print("Bot is starting up...")

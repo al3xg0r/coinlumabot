@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from localization import TEXTS
 from utils import get_user_lang, save_user_language, logger, ADMIN_ID
 from services import CryptoService
-from database import add_user, log_search, get_statistics
+from database import add_user, log_search, get_statistics, get_all_users
 
 SUPPORT_STATE = 1
 
@@ -34,8 +34,19 @@ async def support_start(update, context):
 async def support_receive(update, context):
     u = update.effective_user
     l = get_user_lang(u.id)
-    msg = f"📩 **Support**\nFrom: {u.first_name} (@{u.username})\nID: {u.id}\n\n{update.message.text}"
-    await context.bot.send_message(chat_id=ADMIN_ID, text=msg)
+    
+    # Формируем сообщение админу так, чтобы удобно было отвечать
+    # Копируемая команда для ответа
+    reply_cmd = f"/reply {u.id}"
+    
+    msg = (
+        f"📩 **New Support Message**\n"
+        f"From: {u.first_name} (@{u.username})\n"
+        f"ID: `{u.id}`\n\n"
+        f"📝 Text:\n{update.message.text}\n\n"
+        f"👇 Click to reply:\n`{reply_cmd}`"
+    )
+    await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='Markdown')
     await update.message.reply_text(TEXTS[l]['support_sent'])
     return ConversationHandler.END
 
@@ -44,37 +55,61 @@ async def cancel(update, context):
     await update.message.reply_text(TEXTS[l]['support_cancel'])
     return ConversationHandler.END
 
-# --- Топ-10 ---
-async def top10_command(update, context):
-    l = get_user_lang(update.effective_user.id)
+# --- Админские функции ---
+
+async def reply_command(update, context):
+    """Ответ конкретному пользователю: /reply <id> <text>"""
+    if update.effective_user.id != ADMIN_ID: return
+
+    try:
+        # Разбираем аргументы: args[0] это ID, остальные - текст
+        if len(context.args) < 2:
+            await update.message.reply_text("⚠️ Use: `/reply <user_id> <message>`", parse_mode='Markdown')
+            return
+
+        user_id = int(context.args[0])
+        text = " ".join(context.args[1:])
+        
+        # Получаем язык пользователя (по умолчанию EN, если нет в кэше)
+        l = get_user_lang(user_id) 
+        
+        # Шлем сообщение пользователю
+        response_text = TEXTS[l]['admin_reply'].format(text=text)
+        await context.bot.send_message(chat_id=user_id, text=response_text, parse_mode='Markdown')
+        
+        await update.message.reply_text(f"✅ Sent to `{user_id}`", parse_mode='Markdown')
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+async def broadcast_command(update, context):
+    """Рассылка всем: /broadcast <text>"""
+    if update.effective_user.id != ADMIN_ID: return
     
-    # 1. Получаем данные
-    coins = CryptoService.get_top_10()
-    
-    if not coins:
-        await update.message.reply_text(TEXTS[l]['top10_error'])
+    msg_text = " ".join(context.args)
+    if not msg_text:
+        await update.message.reply_text("⚠️ Use: `/broadcast <message>`", parse_mode='Markdown')
         return
 
-    # 2. Формируем сообщение
-    msg = TEXTS[l]['top10_header']
+    users = get_all_users()
+    count = len(users)
     
-    for idx, coin in enumerate(coins):
-        symbol = coin['symbol'].upper()
-        price = coin['current_price']
-        change = coin.get('price_change_percentage_24h', 0)
-        
-        # Логика стрелок (как в Crypto Request)
-        if change >= 0:
-            arrow_str = "🟢 ↑"
-        else:
-            arrow_str = "🔴 ↓"
-            
-        # Формат: 1. BTC: $96500 (🟢 ↑ 2.5%)
-        msg += f"**{idx+1}. {symbol}:** `{price} $` ({arrow_str} {change:.2f}%)\n"
+    # Сообщение админу о начале
+    l = get_user_lang(ADMIN_ID)
+    await update.message.reply_text(TEXTS[l]['broadcast_start'].format(count=count))
 
-    await update.message.reply_text(msg, parse_mode='Markdown')
+    # Рассылка
+    success_count = 0
+    for uid in users:
+        try:
+            # Шлем напрямую, без оформления "Сообщение от админа", чтобы выглядело как новость
+            await context.bot.send_message(chat_id=uid, text=msg_text, parse_mode='Markdown')
+            success_count += 1
+        except Exception as e:
+            # Пользователь мог заблокировать бота
+            logger.error(f"Broadcast fail for {uid}: {e}")
+    
+    await update.message.reply_text(f"{TEXTS[l]['broadcast_done']}\n✅ Delivered: {success_count}/{count}")
 
-# --- Статистика для админа ---
 async def stats_command(update, context):
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
@@ -93,28 +128,48 @@ async def stats_command(update, context):
     )
     await update.message.reply_text(msg, parse_mode='Markdown')
 
+# --- Топ-10 ---
+async def top10_command(update, context):
+    l = get_user_lang(update.effective_user.id)
+    coins = CryptoService.get_top_10()
+    
+    if not coins:
+        await update.message.reply_text(TEXTS[l]['top10_error'])
+        return
+
+    msg = TEXTS[l]['top10_header']
+    for idx, coin in enumerate(coins):
+        symbol = coin['symbol'].upper()
+        price = coin['current_price']
+        change = coin.get('price_change_percentage_24h', 0)
+        
+        if change >= 0:
+            arrow_str = "🟢 ↑"
+        else:
+            arrow_str = "🔴 ↓"
+            
+        msg += f"**{idx+1}. {symbol}:** `{price} $` ({arrow_str} {change:.2f}%)\n"
+
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
 # --- Основная функция обработки криптовалют ---
 async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     l = get_user_lang(update.effective_user.id)
     q = update.message.text
     if not q or len(q) > 30: return
 
-    # Логируем запрос в БД
     log_search(update.effective_user.id, q)
 
     wait = await update.message.reply_text("⏳ ...")
     
-    # 1. Получаем цену
     data = CryptoService.get_coin_price(q)
     
     if not data:
         await wait.edit_text(TEXTS[l]['not_found'])
         return
 
-    # 2. Формируем текст
     change_val = data.get('change_24h', 0)
     
-    # Логика стрелок
     if change_val >= 0:
         trend_emoji = "📈"
         arrow_str = "🟢 ↑" 
@@ -131,12 +186,10 @@ async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TY
 
     await wait.delete()
 
-    # 3. График
     chart_file = None
     if data.get('id'):
         chart_file = CryptoService.get_chart(data['id'])
 
-    # 4. Отправка
     try:
         if chart_file:
             await context.bot.send_photo(chat_id=update.effective_chat.id, photo=chart_file, caption=msg, parse_mode='Markdown')
