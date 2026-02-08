@@ -8,14 +8,12 @@ from handlers import (
     start, help_command, info_command, 
     support_start, support_receive, cancel, 
     handle_crypto_request, stats_command, top10_command, 
-    reply_command, broadcast_command, SUPPORT_STATE 
+    reply_command, broadcast_command, price_command, SUPPORT_STATE 
 )
 
-# Функция отчета
 async def send_daily_stats(context):
     s = get_statistics()
     top_list = "\n".join([f"{i+1}. {c[0]} — {c[1]}" for i, c in enumerate(s['top_coins'])])
-    
     msg = (
         f"📅 **Ежедневный отчет (10:00)**\n\n"
         f"👥 Всего пользователей: `{s['total_users']}`\n"
@@ -26,7 +24,6 @@ async def send_daily_stats(context):
     )
     await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode='Markdown')
 
-# Функция запуска планировщика
 async def post_init(application):
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Kyiv"))
     scheduler.add_job(send_daily_stats, 'cron', hour=10, minute=0, args=(application,))
@@ -38,7 +35,6 @@ def main():
     
     app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
 
-    # Conversation Handler (Support)
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('support', support_start)],
         states={SUPPORT_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, support_receive)]},
@@ -51,13 +47,14 @@ def main():
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("top10", top10_command))
     
-    # Новые админские команды
+    # Команды для групп
+    app.add_handler(CommandHandler("p", price_command))
+    app.add_handler(CommandHandler("price", price_command))
+
     app.add_handler(CommandHandler("reply", reply_command))
     app.add_handler(CommandHandler("broadcast", broadcast_command))
     
     app.add_handler(conv_handler)
-    
-    # Обработчик текста
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_crypto_request))
 
     print("Bot is starting up...")

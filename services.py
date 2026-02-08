@@ -25,7 +25,6 @@ CG_HEADERS = {
     'x-cg-demo-api-key': COINGECKO_API_KEY
 }
 
-# Хедеры для CoinMarketCap
 CMC_HEADERS = {
     'Accepts': 'application/json',
     'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
@@ -45,25 +44,24 @@ class CryptoService:
         if query in price_cache:
             return price_cache[query]
 
-        # 1. CoinGecko (Лучший, есть картинки)
+        # 1. CoinGecko
         data = CryptoService._get_from_coingecko(query)
         if data: return data
 
-        # 2. CoinMarketCap (Новый, очень надежный)
+        # 2. CoinMarketCap
         data = CryptoService._get_from_coinmarketcap(query)
         if data: return data
 
-        # 3. CoinCap (Резерв)
+        # 3. CoinCap
         data = CryptoService._get_from_coincap(query)
         if data: return data
 
-        # 4. CryptoCompare (Последний шанс)
+        # 4. CryptoCompare
         return CryptoService._get_from_cryptocompare(query)
 
     @staticmethod
     def get_chart(coin_id):
         """Генерирует график за 24 часа (Только CoinGecko)"""
-        # Если ID нет (пришло от CMC/CoinCap), график построить нельзя
         if not coin_id: return None
 
         if coin_id in chart_cache:
@@ -112,24 +110,34 @@ class CryptoService:
 
     @staticmethod
     def get_top_10():
-        """Возвращает список топ-10 монет с CoinGecko"""
+        """Возвращает список топ-10 монет с CoinMarketCap (более стабильно для серверов)"""
         if 'top10' in top10_cache:
             return top10_cache['top10']
         
         try:
-            url = f"{COINGECKO_URL}/coins/markets"
+            url = f"{COINMARKETCAP_URL}/cryptocurrency/listings/latest"
             params = {
-                'vs_currency': 'usd',
-                'order': 'market_cap_desc',
-                'per_page': 10,
-                'page': 1,
-                'sparkline': 'false'
+                'start': '1',
+                'limit': '10',
+                'convert': 'USD'
             }
-            resp = session.get(url, params=params, headers=CG_HEADERS, timeout=10)
+            resp = session.get(url, params=params, headers=CMC_HEADERS, timeout=10)
+            
             if resp.status_code == 200:
-                data = resp.json()
-                top10_cache['top10'] = data
-                return data
+                raw_data = resp.json().get('data', [])
+                clean_data = []
+                
+                # Приводим формат CMC к нашему общему виду
+                for item in raw_data:
+                    quote = item['quote']['USD']
+                    clean_data.append({
+                        'symbol': item['symbol'],
+                        'current_price': round(quote['price'], 2),
+                        'price_change_percentage_24h': quote['percent_change_24h']
+                    })
+                
+                top10_cache['top10'] = clean_data
+                return clean_data
         except Exception as e:
             logger.error(f"Top 10 fetch error: {e}")
         return None
@@ -174,30 +182,25 @@ class CryptoService:
 
     @staticmethod
     def _get_from_coinmarketcap(query):
-        """Получение цены через CoinMarketCap"""
         try:
             url = f"{COINMARKETCAP_URL}/cryptocurrency/quotes/latest"
-            # CMC ищет по символу (BTC)
             params = {'symbol': query, 'convert': 'USD'}
-            
             r = session.get(url, headers=CMC_HEADERS, params=params, timeout=10)
             if r.status_code != 200: return None
             
             data = r.json().get('data', {})
             if query in data:
-                coin = data[query] # CMC возвращает данные под ключом символа "BTC"
+                coin = data[query]
                 quote = coin['quote']['USD']
-                
                 price_usd = quote['price']
                 
-                # Ручной пересчет кросс-курсов для экономии кредитов API
-                # Курсы примерные, но для крипты достаточно точные
-                eur_rate = 0.96  # 1 USD = 0.96 EUR
-                uah_rate = 41.60 # 1 USD = 41.60 UAH
-                rub_rate = 96.50 # 1 USD = 96.50 RUB
+                # Кросс-курсы (примерные)
+                eur_rate = 0.96
+                uah_rate = 41.60
+                rub_rate = 96.50
                 
                 res = {
-                    'id': None, # Графика не будет, т.к. нет ID CoinGecko
+                    'id': None, 
                     'name': coin['name'], 
                     'symbol': coin['symbol'], 
                     'image': None,
