@@ -12,9 +12,16 @@ SUPPORT_STATE = 1
 async def start(update, context):
     u = update.effective_user
     l = get_user_lang(u.id, u.language_code)
+    
+    # В ЛЮБОМ случае сохраняем юзера, чтобы знать, кто нас добавил
     save_user_language(u.id, l)
     add_user(u.id, u.username, u.first_name, l)
-    await update.message.reply_text(TEXTS[l]['start'])
+    
+    # Разное приветствие для ЛС и Групп
+    if update.effective_chat.type != ChatType.PRIVATE:
+        await update.message.reply_text(TEXTS[l]['start_group'], parse_mode='Markdown')
+    else:
+        await update.message.reply_text(TEXTS[l]['start'])
 
 async def help_command(update, context):
     l = get_user_lang(update.effective_user.id)
@@ -122,7 +129,6 @@ async def top10_command(update, context):
 async def _process_price_request(update, context, query):
     l = get_user_lang(update.effective_user.id)
     
-    # Игнорируем длинные сообщения (защита от спама)
     if len(query) > 20: return
 
     log_search(update.effective_user.id, query)
@@ -165,18 +171,18 @@ async def _process_price_request(update, context, query):
 
 # --- Обработчик текста (Только ЛС) ---
 async def handle_crypto_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Если это ГРУППА или КАНАЛ - игнорируем обычный текст
     if update.effective_chat.type != ChatType.PRIVATE:
         return
-    
     q = update.message.text
     if not q: return
     await _process_price_request(update, context, q)
 
-# --- Обработчик команды /p или /price (Для групп) ---
+# --- Обработчик команды /p (Для групп) ---
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        # Можно вывести подсказку, как пользоваться
+        l = get_user_lang(update.effective_user.id)
+        # Если юзер ввел просто /p без аргументов
+        await update.message.reply_text(f"💡 Use: `/p BTC`", parse_mode='Markdown')
         return
     
     q = context.args[0]
