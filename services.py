@@ -3,6 +3,7 @@ import requests
 import matplotlib
 import matplotlib.pyplot as plt
 import io
+import gc
 from datetime import datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -30,10 +31,11 @@ CMC_HEADERS = {
     'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
 }
 
-# Кэш
-chart_cache = TTLCache(maxsize=500, ttl=600)
-price_cache = TTLCache(maxsize=1000, ttl=600)
-image_cache = TTLCache(maxsize=2000, ttl=86400)
+# --- ОПТИМИЗАЦИЯ ПАМЯТИ (RAM) ---
+# Уменьшаем количество хранимых объектов, так как графики тяжелые
+chart_cache = TTLCache(maxsize=50, ttl=300)      # Было 500 -> Стало 50
+price_cache = TTLCache(maxsize=500, ttl=300)     # Было 1000 -> Стало 500
+image_cache = TTLCache(maxsize=1000, ttl=86400)  # Было 2000 -> Стало 1000
 id_cache = TTLCache(maxsize=2000, ttl=86400)
 top10_cache = TTLCache(maxsize=1, ttl=300)
 
@@ -61,7 +63,7 @@ class CryptoService:
 
     @staticmethod
     def get_chart(coin_id):
-        """Генерирует график за 24 часа (Только CoinGecko)"""
+        """Генерирует график за 24 часа (Оптимизировано для RAM)"""
         if not coin_id: return None
 
         if coin_id in chart_cache:
@@ -83,13 +85,15 @@ class CryptoService:
             prices = [x[1] for x in data]
 
             plt.style.use('dark_background')
-            fig, ax = plt.subplots(figsize=(10, 5))
+            
+            # ОПТИМИЗАЦИЯ: Меньше размер фигуры (8x4 дюйма) и DPI
+            fig, ax = plt.subplots(figsize=(8, 4))
             
             color = '#00ff00' if prices[-1] >= prices[0] else '#ff0055'
-            ax.plot(times, prices, color=color, linewidth=2)
+            ax.plot(times, prices, color=color, linewidth=1.5)
             ax.fill_between(times, prices, color=color, alpha=0.1)
 
-            ax.set_title(f"{coin_id.upper()} Price (24h)", fontsize=14, color='white')
+            ax.set_title(f"{coin_id.upper()} (24h)", fontsize=12, color='white')
             ax.grid(True, linestyle='--', alpha=0.2)
             
             ax.spines['top'].set_visible(False)
@@ -98,9 +102,14 @@ class CryptoService:
             ax.spines['left'].set_color('#444')
 
             buf = io.BytesIO()
-            plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+            # ОПТИМИЗАЦИЯ: DPI 75 достаточно для экрана телефона
+            plt.savefig(buf, format='png', bbox_inches='tight', dpi=75)
             buf.seek(0)
+            
+            # ВАЖНО: Явная очистка памяти
             plt.close(fig)
+            del fig, ax, times, prices, data
+            gc.collect() 
 
             chart_cache[coin_id] = buf
             return buf
@@ -110,7 +119,7 @@ class CryptoService:
 
     @staticmethod
     def get_top_10():
-        """Возвращает список топ-10 монет с CoinMarketCap (более стабильно для серверов)"""
+        """Возвращает список топ-10 монет с CoinMarketCap"""
         if 'top10' in top10_cache:
             return top10_cache['top10']
         
@@ -127,7 +136,6 @@ class CryptoService:
                 raw_data = resp.json().get('data', [])
                 clean_data = []
                 
-                # Приводим формат CMC к нашему общему виду
                 for item in raw_data:
                     quote = item['quote']['USD']
                     clean_data.append({
@@ -194,7 +202,6 @@ class CryptoService:
                 quote = coin['quote']['USD']
                 price_usd = quote['price']
                 
-                # Кросс-курсы (примерные)
                 eur_rate = 0.96
                 uah_rate = 41.60
                 rub_rate = 96.50
