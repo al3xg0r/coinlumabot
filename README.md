@@ -3,7 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Version](https://img.shields.io/badge/Version-2.5.0-orange.svg)
+![Version](https://img.shields.io/badge/Version-2.5.1-orange.svg)
 
 **CoinLuma** is an advanced Telegram bot for tracking cryptocurrency prices in real-time. It features multi-source data aggregation, professional 24h charts, market insights, and a powerful administrator panel.
 
