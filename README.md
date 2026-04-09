@@ -114,22 +114,23 @@ curl https://YOUR_WORKER_URL/setup
 
 ## 🏗️ Architecture
 
+```text
 coinlumabot/
 ├── src/
-│   ├── index.js              # Main worker entry point
+│   ├── index.js          # Main worker entry point
 │   ├── bot/
-│   │   ├── telegram.js       # Telegram update handler
-│   │   └── i18n.js           # Internationalization
+│   │   ├── telegram.js   # Telegram update handler
+│   │   └── i18n.js       # Internationalization
 │   ├── services/
-│   │   ├── price.js          # Multi-source price aggregator
-│   │   └── database.js       # D1 database service
+│   │   ├── price.js      # Price aggregator
+│   │   └── database.js   # D1 database service
 │   └── utils/
-│       ├── telegram.js       # Telegram API helpers
-│       ├── formatters.js     # Number formatting utilities
-│       └── chart.js          # Chart generation
-├── schema.sql                # Database schema
-├── wrangler.toml            # Cloudflare Workers config
-└── package.json             # Dependencies
+│       ├── telegram.js   # API helpers
+│       └── chart.js      # Chart generation
+├── schema.sql            # Database schema
+├── wrangler.toml         # Cloudflare config
+└── package.json          # Dependencies
+```
 
 ## 🔧 Configuration
 
