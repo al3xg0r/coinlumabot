@@ -36,7 +36,7 @@ Just send me a coin name or symbol:
 Example: /p BTC
 
 <b>Support:</b>
-Need help? Contact @agtsupbot`,
+Need help? Contact @tg_agteam_bot`,
 
     top10_title: 'Top 10 Cryptocurrencies',
     loading: '⏳ Loading data...',
@@ -85,7 +85,7 @@ Need help? Contact @agtsupbot`,
 Пример: /p BTC
 
 <b>Поддержка:</b>
-Нужна помощь? Обратитесь к @agtsupbot`,
+Нужна помощь? Обратитесь к @tg_agteam_bot`,
 
     top10_title: 'Топ 10 криптовалют',
     loading: '⏳ Загрузка данных...',
@@ -134,7 +134,7 @@ Need help? Contact @agtsupbot`,
 Приклад: /p BTC
 
 <b>Підтримка:</b>
-Потрібна допомога? Зверніться до @agtsupbot`,
+Потрібна допомога? Зверніться до @tg_agteam_bot`,
 
     top10_title: 'Топ 10 криптовалют',
     loading: '⏳ Завантаження даних...',
