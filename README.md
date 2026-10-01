@@ -21,7 +21,6 @@ A reliable, multi-source cryptocurrency price tracker bot for Telegram, powered 
 - Market cap, volume, and circulating supply data
 
 ### 🌍 Multilingual Support
-- Full support for **English** 🇺🇸, **Russian** 🇷🇺, and **Ukrainian** 🇺🇦
 - Automatic language detection based on user preferences
 
 ### 💬 Group & Private Chat Support
@@ -171,7 +170,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔗 Links
 
 - **Telegram Bot**: [@CoinLumaBot](https://t.me/CoinLumaBot)
-- **Support**: [@agtsupbot](https://t.me/agtsupbot)
+- **Support**: [@tg_agteam_bot](https://t.me/tg_agteam_bot)
 - **GitHub**: [al3xg0r/coinlumabot](https://github.com/al3xg0r/coinlumabot)
 
 ## 💰 Pricing
