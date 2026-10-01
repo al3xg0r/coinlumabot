@@ -4,8 +4,6 @@
  */
 
 import { handleTelegramUpdate } from './bot/telegram.js';
-import { DatabaseService } from './services/database.js';
-import { sendTelegramMessage } from './utils/telegram.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -67,37 +65,5 @@ export default {
     }
 
     return new Response('CoinLuma Bot is running', { status: 200 });
-  },
-
-  // Scheduled task for daily reports
-  async scheduled(event, env, ctx) {
-    try {
-      const db = new DatabaseService(env.DB);
-      const stats = await db.getStats();
-      
-      if (env.ADMIN_CHAT_ID) {
-        const message = formatDailyReport(stats);
-        await sendTelegramMessage(env.TELEGRAM_BOT_TOKEN, env.ADMIN_CHAT_ID, message);
-      }
-    } catch (error) {
-      console.error('Scheduled task error:', error);
-    }
   }
 };
-
-function formatDailyReport(stats) {
-  let message = `📊 <b>Daily Statistics Report</b>\n\n`;
-  message += `👥 Total Users: ${stats.totalUsers}\n`;
-  message += `🆕 New Users (24h): ${stats.newUsers}\n`;
-  message += `⚡️ Active Users (24h): ${stats.activeUsers}\n`;
-  message += `🔍 Total Searches: ${stats.totalSearches}\n\n`;
-  
-  if (stats.topCoins && stats.topCoins.length > 0) {
-    message += `🏆 <b>Top Searched Coins:</b>\n`;
-    stats.topCoins.forEach((coin, i) => {
-      message += `${i + 1}. ${coin.symbol.toUpperCase()} - ${coin.count} searches\n`;
-    });
-  }
-  
-  return message;
-}

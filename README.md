@@ -32,7 +32,6 @@ A reliable, multi-source cryptocurrency price tracker bot for Telegram, powered 
 ### 📈 Admin Features
 - User statistics and analytics
 - Broadcast messaging to all users
-- Daily automated reports
 - Search history tracking
 
 ## 🚀 Quick Start
@@ -108,7 +107,7 @@ curl https://YOUR_WORKER_URL/setup
 - Send any coin name or symbol in private chat (e.g., `bitcoin`, `eth`, `ton`)
 
 ### Admin Commands
-- `/stats` - View bot statistics
+- `/status` - View bot statistics (admin only)
 - `/broadcast <message>` - Send message to all users
 - `/reply <user_id> <message>` - Reply to a specific user
 

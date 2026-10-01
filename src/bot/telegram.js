@@ -46,7 +46,7 @@ async function handleMessage(message, env, db) {
     await handleHelp(chatId, lang, env);
   } else if (text.startsWith('/top10')) {
     await handleTop10(chatId, lang, env, db);
-  } else if (text.startsWith('/stats') && userId.toString() === env.ADMIN_CHAT_ID) {
+  } else if (text.startsWith('/status') && userId.toString() === env.ADMIN_CHAT_ID) {
     await handleStats(chatId, env, db);
   } else if (text.startsWith('/broadcast') && userId.toString() === env.ADMIN_CHAT_ID) {
     await handleBroadcast(message, env, db);
